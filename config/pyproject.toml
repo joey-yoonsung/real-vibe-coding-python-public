@@ -1,0 +1,16 @@
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
+
+[project]
+name = "my-config"
+version = "0.1.0"
+description = "Shared configuration base module for AIR services"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.0.0",
+    "my-logger",
+]
+
+[tool.uv.sources]
+my-logger = { workspace = true }

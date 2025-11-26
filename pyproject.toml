@@ -1,0 +1,120 @@
+[project]
+name = "real-vibe-coding"
+version = "0.0.1"
+description = "Vibe Coding Practice"
+requires-python = ">=3.12"
+dependencies = []  # Root is not a runtime package; keep runtime deps in members.
+
+[tool.uv]
+# Do not treat the root as an installable package (no build/installation at root).
+package = false
+
+# Global version constraints applied across the workspace.
+# Members should still declare their own runtime dependencies; these constraints unify versions.
+constraint-dependencies = [
+  "fastapi==0.120.2",
+  "httpx==0.28.1",
+  "jinja2==3.1.6",
+  "openai>=2.3.0",
+  "pandas==2.3.3",
+  "pydantic==2.12.3",
+  "pydantic-settings==2.11.0",
+  "structlog==25.5.0",
+  "typer<=0.12.5",
+  "uvicorn==0.38.0",
+]
+
+[tool.uv.workspace]
+# Workspace members (each is a real, buildable Python package/project).
+members = [
+  "config",
+  "logger",
+]
+
+# Development-only dependencies (PEP 735 dependency groups).
+[dependency-groups]
+dev = [
+  "ruff==0.14.2",
+  "mypy==1.18.2",
+  "pytest==8.4.2",
+  "pytest-asyncio==1.2.0",
+  "pytest-cov==7.0.0",
+  "pre-commit>=4.3.0",
+  # Type stubs for external libraries
+  "types-PyYAML>=6.0.12.20250915",
+  "types-jsonschema>=4.25.1.20251009",
+  "python-dotenv>=1.2.1",
+]
+
+# ----------------------------
+# Ruff - ultra-fast linter/formatter
+# ----------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+exclude = [
+  ".git",
+  ".mypy_cache",
+  ".ruff_cache",
+  ".venv",
+  "__pycache__",
+  "build",
+  "dist",
+  ".pre-commit-scripts",
+]
+
+[tool.ruff.lint]
+# Enable common rule sets (pycodestyle, pyflakes, isort rules, bugbear, etc.)
+select = [
+  "E","W","F","I","B","C4","UP","S","T20","SIM","ARG","ERA","PL","RUF",
+]
+# Ignore a few noisy rules globally.
+ignore = [
+  "S101",     # allow use of `assert`
+  "PLR2004",  # magic numbers
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Relax some rules for tests.
+"tests/**/*" = ["S101", "ARG", "PLR2004"]
+
+[tool.ruff.lint.isort]
+# Adjust to match actual first-party import roots in your repo.
+known-first-party = ["gateway", "generator", "schema", "rdb", "starrocks", "my_config", "my_logger"]
+
+# ----------------------------
+# mypy - static type checker
+# ----------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+exclude = [
+    ".*/generated/.*",
+    "^\\.pre-commit-scripts/.*",
+    ".*cli.py",
+]
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_reexport = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+# Relax strict typing for test files
+module = ["*.tests.*", "tests.*"]
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+disallow_incomplete_defs = false
+disallow_any_unimported = false
+# Ignore common third-party library type mismatches in tests
+warn_return_any = false

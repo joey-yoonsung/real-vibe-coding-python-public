@@ -1,0 +1,14 @@
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
+
+[project]
+name = "my-logger"
+version = "0.1.0"
+description = "Shared structured logging module for AIR services"
+requires-python = ">=3.12"
+dependencies = [
+    "structlog",
+    "python-dotenv",
+    "pyyaml",
+]
