@@ -1,41 +1,20 @@
-# Claude Memory Structure
-```
-project-root/
-├── .claude/
-│   ├── CLAUDE.md                    # Main project context (Git tracked)
-│   ├── plan.md                      # Overall project plan & milestones (Git tracked)
-│   ├── techspec.md                  # Technical specifications (Git tracked)
-│   ├── conventions.md               # Coding conventions & standards (Git tracked)
-│   ├── context.md                   # Additional context info (Git tracked)
-│   │
-│   ├── skills/                      # Reusable patterns & knowledge (Git tracked)
-│   │   └── <skill-name>/            # Each skill has its own directory
-│   │       ├── SKILL.md             # Skill definition and instructions
-│   │       ├── references/          # Optional: reference documents
-│   │       └── scripts/             # Optional: helper scripts
-│   │
-│   └── tasks/                       # Task-specific plans (Git ignored)
-│       ├── .gitkeep                 # Keep directory in Git
-│       ├── current-task.md          # Active task plan (local only)
-│       └── archive/                 # Optional: completed tasks
-│           └── [date]-[task].md
-```
-- [plan.md](./plan.md) - Development Plan
-- [techspec.md](./techspec.md) - Tech Spec
-- [conventions.md](./conventions.md) - Coding Convention
-- [skills/](./skills/) - Collection of skills (each skill has SKILL.md)
-- [tasks/](./tasks/) - Temporal Memory directory to proceed current task. Git ignore files in this directory.
-
-
 # Project Overview
 
 This is a practice project for learning Claude Code usage.
 
 ## Development Commands
 
-**Setup & Installation**:
+### Prerequisites
+**Setup & Installation**: Every time an agent work start, run this commands first.
 ```bash
-uv sync --all-packages --all-groups -v
+uv sync --all-packages --all-groups --locked -v
+```
+
+### Verifying
+Every time an agent produce a buildable(testable, runnable) lump of result, verifying it with the following commands.
+**Testing**:
+```bash
+uv run pytest
 ```
 
 **Code Quality & Linting**:
@@ -43,9 +22,9 @@ uv sync --all-packages --all-groups -v
 uv run pre-commit run
 ```
 
-**Testing**:
+**Full Test**:
 ```bash
-uv run pytest
+make ci
 ```
 
 # Language
@@ -126,7 +105,7 @@ Stop immediately if you find yourself:
 
 ## WORKFLOW EXAMPLE
 ### Plan
-1. When getting a new work or task, always write plan under [.claude/tasks/](.claude/tasks/) directory and confirm review from human.
+1. When getting a new work or task, always write plan under [.claude/tasks/](./tssks/) or [.claude/](.) directory and confirm review from human.
 2. If some tasks or steps of plan are done, complete current task with updating existing plan file at last.
 
 ### Develop a new feature
@@ -155,18 +134,10 @@ When approaching a new feature:
 - Balance feature development with code cleanup cycles
 
 ## COMMUNICATION GUIDELINES
-- Ask clarifying questions when requirements are unclear
+- When requirements are unclear, use `/clarify` command to systematically identify gaps and ask targeted questions before implementation
 - Propose specific next steps rather than implementing ahead
 - Explain reasoning when suggesting refactorings
 - Report when tests are passing/failing clearly
 - Alert immediately if you detect any of the warning signs listed above
 
 Follow this process precisely, always prioritizing clean, well-tested code over quick implementation.
-
-## CLAUDE CODE SPECIFIC GUIDE
-### ACCUMULATE KNOW-HOW to CLUADE SKILLS
-- Always review sustainability at the end of design or code improvement work.
-- After various experiments and discussions, review sustainability once a new design pattern or interface structure is established.
-- If deemed sustainable, consider saving that functionality as a single Claude skill within Claude Skills.
-- At the end of the task, suggest saving it as a Claude skill.
-- If the user decides to save it as a Claude skill, use the skill-creator skill to create the new skill.

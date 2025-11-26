@@ -1,17 +1,20 @@
 ---
 name: config-skill
-description: "Guide for creating and managing configuration classes in this project. Use when creating new config classes, loading configuration from environment variables, implementing domain-specific configs (Redis, OpenAI, S3, etc.), integrating with FastAPI or LangGraph, or working with sensitive field masking. This skill defines the two-type config system: Settings (BaseSettings) for app-level config and ConfigBase (BaseModel) for domain configs."
+description: "Guide for creating and managing configuration classes in this project. Use when creating new config classes, loading configuration from environment variables, implementing domain-specific configs (Redis, OpenAI, S3, etc.), integrating with FastAPI or LangGraph, or working with sensitive field masking. This skill defines the two-type config system: Settings (SettingsBase) for app-level config and ConfigBase (BaseModel) for domain configs."
 ---
 
 # Configuration Class System
 
-Two-type configuration architecture: **Settings** for app-level config and **ConfigBase** for domain configs.
+Two-type configuration architecture with inheritance-based deduplication:
+- **Settings** (inherits from SettingsBase) for app-level config
+- **ConfigBase** (inherits from BaseModel) for domain configs
+- **SettingsBase** provides shared `model_config` and `_load_config()` helper
 
 ## Type Selection
 
 | Use Case | Class | Base |
 |----------|-------|------|
-| App-level settings (workers, ports, timeouts) | Settings | `BaseSettings` |
+| App-level settings (workers, ports, timeouts) | Settings | `SettingsBase` |
 | Domain configs (Redis, OpenAI, S3, LLM) | YourConfig | `ConfigBase` |
 | FastAPI request/response models | YourConfig | `ConfigBase` |
 | LangGraph state classes | YourConfig | `ConfigBase` |
@@ -41,11 +44,29 @@ class RedisConfig(ConfigBase):
 
 ### Loading from Environment
 
-Use `from_env()` for explicit environment loading:
+Use `from_env()` for explicit environment loading with multiple sources:
+
+**Precedence order** (highest to lowest):
+1. `os.environ` (runtime environment variables)
+2. `.env` file (if `env_file` parameter provided)
+3. Class defaults or `**defaults` parameter
 
 ```python
-# Environment: REDIS_HOST=prod-redis, REDIS_PORT=6380, REDIS_PASSWORD=secret
+# From os.environ only
 config = RedisConfig.from_env(prefix="REDIS_")
+
+# From .env file (with os.environ taking precedence)
+config = RedisConfig.from_env(prefix="REDIS_", env_file=".env")
+
+# Custom .env file path
+config = RedisConfig.from_env(prefix="REDIS_", env_file="/path/to/custom.env")
+```
+
+**Example .env file:**
+```bash
+REDIS_HOST=prod-redis
+REDIS_PORT=6380
+REDIS_PASSWORD=secret
 ```
 
 ### Nested Model Support
@@ -88,36 +109,78 @@ config = RedisConfig(host="localhost", custom_option="value")
 print(config.get_extra_configs())  # {"custom_option": "value"}
 ```
 
-## Settings Integration
+## SettingsBase: Eliminating Duplication
 
-Settings uses `@cached_property` with `ConfigBase.from_env()`:
+**Problem**: Every Settings class duplicated `model_config` and `_load_config()` helper.
+
+**Solution**: SettingsBase provides both via inheritance.
 
 ```python
+from air_common import SettingsBase
 from functools import cached_property
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
-class Settings(BaseSettings):
+class Settings(SettingsBase):  # Inherits model_config and _load_config()
+    # NO model_config needed - inherited from SettingsBase!
+    # Provides: env_file=".env", case_sensitive=False, extra="ignore", utf-8
+
+    # App-level settings only
+    worker_slots: int = 5
+    server_port: int = 8080
+
+    # Clean one-liners using inherited _load_config()
+    @cached_property
+    def redis_config(self) -> RedisConfig:
+        return self._load_config(RedisConfig, prefix="REDIS_")
+
+    @cached_property
+    def openai_config(self) -> OpenAIConfig:
+        return self._load_config(OpenAIConfig, prefix="OPENAI_")
+```
+
+**Benefits**:
+- ✅ No `model_config` duplication across services
+- ✅ No `_load_config()` duplication across services
+- ✅ Consistent defaults across all Settings classes
+- ✅ Can override `model_config` if needed (flexible)
+- ✅ Type-safe helper with proper generics
+
+Access: `settings.redis_config.host`, `settings.openai_config.api_key`
+
+### SettingsBase API
+
+```python
+class SettingsBase(BaseSettings):
+    """Base class for app-level Settings with shared config and helpers."""
+
+    # Default model_config (can be overridden)
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
         extra="ignore",
+        env_file_encoding="utf-8",
     )
 
-    # App-level settings only
-    worker_slots: int = Field(default=5)
-    server_port: int = Field(default=8080)
-
-    @cached_property
-    def redis_config(self) -> RedisConfig:
-        return RedisConfig.from_env(prefix="REDIS_")
-
-    @cached_property
-    def openai_config(self) -> OpenAIConfig:
-        return OpenAIConfig.from_env(prefix="OPENAI_")
+    # Shared helper method
+    def _load_config(
+        self,
+        config_class: type[T],
+        prefix: str = "",
+        env_file: str | None = None,
+    ) -> T:
+        """Load domain config from environment with .env file support."""
+        return config_class.from_env(prefix=prefix, env_file=env_file)
 ```
 
-Access: `settings.redis_config.host`, `settings.openai_config.api_key`
+### Overriding model_config (if needed)
+
+```python
+class CustomSettings(SettingsBase):
+    model_config = SettingsConfigDict(
+        env_file="custom.env",  # Override env file
+        case_sensitive=True,     # Override case sensitivity
+        extra="allow",           # Override extra fields
+    )
+```
 
 ## FastAPI Integration
 
@@ -156,19 +219,62 @@ def test_printable_masks_password():
 
 ```python
 ConfigClass.from_env(
-    prefix: str = "",       # e.g., "REDIS_"
-    separator: str = "_",   # Field separator
-    max_depth: int = 3,     # Max nesting depth
-    **defaults: Any         # Fallback values
+    prefix: str = "",            # e.g., "REDIS_"
+    separator: str = "_",        # Field separator
+    max_depth: int = 3,          # Max nesting depth
+    env_file: str | None = None, # Path to .env file (optional)
+    **defaults: Any              # Fallback values
 )
 ```
+
+**Precedence**: `os.environ` > `.env file` > `defaults`
 
 Type coercion: `bool` (true/1/yes/on), `int`, `float`, `list` (comma-separated)
 
 ## Key Principles
 
 1. **No field duplication**: Define fields once in ConfigBase, not in Settings
-2. **Explicit loading**: `from_env()` makes env loading clear and intentional
-3. **Single source of truth**: Domain config fields live in ConfigBase classes
-4. **Testing friendly**: Direct instantiation works without environment setup
-5. **FastAPI compatible**: All ConfigBase classes work as request bodies
+2. **No config duplication**: Use SettingsBase to inherit `model_config` and `_load_config()`
+3. **Explicit loading**: `from_env()` makes env loading clear and intentional
+4. **Precedence clarity**: `os.environ` > `.env file` > `defaults`
+5. **Single source of truth**: Domain config fields live in ConfigBase classes
+6. **Testing friendly**: Direct instantiation works without environment setup
+7. **FastAPI compatible**: All ConfigBase classes work as request bodies
+
+## Migration Pattern: BaseSettings → SettingsBase
+
+**Before** (with duplication):
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(  # DUPLICATED across services
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    redis_host: str = "localhost"       # DUPLICATED field
+    redis_port: int = 6379              # DUPLICATED field
+
+    @cached_property
+    def redis_config(self) -> RedisConfig:
+        # DUPLICATED helper logic
+        return RedisConfig.from_env(prefix="REDIS_")
+```
+
+**After** (zero duplication):
+```python
+from air_common import SettingsBase
+
+class Settings(SettingsBase):  # Inherits everything
+    # NO model_config - inherited!
+    # NO duplicated fields!
+    # NO duplicated helper - inherited _load_config()!
+
+    worker_slots: int = 5  # App-level only
+
+    @cached_property
+    def redis_config(self) -> RedisConfig:
+        return self._load_config(RedisConfig, prefix="REDIS_")
+```

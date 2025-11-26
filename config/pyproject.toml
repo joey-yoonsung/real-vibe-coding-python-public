@@ -8,9 +8,20 @@ version = "0.1.0"
 description = "Shared configuration base module for AIR services"
 requires-python = ">=3.12"
 dependencies = [
-    "pydantic>=2.0.0",
+    "pydantic",
+    "pydantic-settings",
     "my-logger",
 ]
 
 [tool.uv.sources]
 my-logger = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "--cov=my_config --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["src/my_config"]
+branch = true

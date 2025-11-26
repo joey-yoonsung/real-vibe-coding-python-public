@@ -80,7 +80,7 @@ ignore = [
 
 [tool.ruff.lint.isort]
 # Adjust to match actual first-party import roots in your repo.
-known-first-party = ["gateway", "generator", "schema", "rdb", "starrocks", "my_config", "my_logger"]
+known-first-party = ["gateway", "generator", "schema", "rdb", "starrocks", "my_config", "my_logger", "my_api"]
 
 # ----------------------------
 # mypy - static type checker
