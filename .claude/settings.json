@@ -1,0 +1,70 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/.ssh/id_*)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)",
+      "Read(**/*.pem)",
+      "Read(**/*.p12)",
+      "Read(**/*.pfx)",
+      "Read(**/*.ppk)",
+      "Read(**/*.gpg)",
+      "Read(**/*.pgp)",
+      "Read(**/*.asc)",
+      "Read(**/.aws/credentials)",
+      "Read(**/.azure/**)",
+      "Read(**/.config/gcloud/**)",
+      "Read(**/.kube/config)",
+      "Read(**/*vault_pass*)",
+      "Read(**/secrets.yml)",
+      "Read(**/secrets.yaml)",
+      "Read(**/secrets.json)",
+      "Read(**/credentials.json)",
+      "Read(**/.htpasswd)",
+      "Read(**/.netrc)",
+      "Read(**/.npmrc)",
+      "Read(**/.pypirc)",
+      "Read(**/application.properties)",
+      "Read(**/appsettings.json)",
+      "Read(**/*.tfstate)",
+      "Read(**/.git/config)",
+      "Read(**/.git-credentials)",
+      "Read(**/.bash_history)",
+      "Read(**/.zsh_history)",
+      "Read(**/.pgpass)",
+      "Read(**/.my.cnf)",
+      "Read(**/.docker/config.json)",
+      "Read(**/*.jks)",
+      "Read(**/*.keystore)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && uv sync --all-packages --all-groups --locked -v",
+            "timeout": 120,
+            "statusMessage": "Running uv sync..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-check.sh",
+            "timeout": 30,
+            "statusMessage": "Running ruff format, lint, and mypy..."
+          }
+        ]
+      }
+    ]
+  }
+}
